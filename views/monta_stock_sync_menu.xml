@@ -1,0 +1,28 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+
+    <!--
+        Menu items for the Monta Stock Sync module.
+        Extends the existing Monta root menu (monta_menu_root)
+        defined in the Monta-Odoo-Integration module.
+    -->
+
+    <!-- Stock Sync Logs sub-menu under Monta root -->
+    <menuitem
+        id="monta_menu_stock_sync_logs"
+        name="Stock Sync Logs"
+        parent="Monta-Odoo-Integration.monta_menu_root"
+        action="action_monta_sync_log_list"
+        sequence="50"
+    />
+
+    <!-- Server Action accessible from the Monta menu: Sync Now -->
+    <menuitem
+        id="monta_menu_stock_sync_now"
+        name="Sync Stock Now"
+        parent="Monta-Odoo-Integration.monta_menu_root"
+        action="action_monta_stock_sync_now"
+        sequence="51"
+    />
+
+</odoo>

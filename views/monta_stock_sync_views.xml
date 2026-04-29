@@ -1,0 +1,129 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+
+    <!-- ═══════════════════════════════════════════════════════════════════
+         ACTION: Open Sync Logs
+         ═══════════════════════════════════════════════════════════════════ -->
+    <record id="action_monta_sync_log_list" model="ir.actions.act_window">
+        <field name="name">Monta Stock Sync Logs</field>
+        <field name="res_model">monta.sync.log</field>
+        <field name="view_mode">list,form</field>
+        <field name="help" type="html">
+            <p class="o_view_nocontent_smiling_face">
+                No sync logs yet.
+            </p>
+            <p>
+                Run a sync from the <strong>Monta → Stock Sync</strong> page
+                or wait for the 24-hour cron job to execute.
+            </p>
+        </field>
+    </record>
+
+    <!-- ═══════════════════════════════════════════════════════════════════
+         VIEW: Sync Log — List
+         ═══════════════════════════════════════════════════════════════════ -->
+    <record id="view_monta_sync_log_list" model="ir.ui.view">
+        <field name="name">monta.sync.log.list</field>
+        <field name="model">monta.sync.log</field>
+        <field name="arch" type="xml">
+            <list string="Monta Stock Sync Logs" decoration-success="state == 'success'"
+                  decoration-warning="state == 'warning'" decoration-danger="state == 'error'"
+                  default_order="sync_date desc" create="false">
+                <field name="sync_date"/>
+                <field name="state" widget="badge"
+                       decoration-success="state == 'success'"
+                       decoration-warning="state == 'warning'"
+                       decoration-danger="state == 'error'"/>
+                <field name="products_fetched"/>
+                <field name="products_synced"/>
+                <field name="products_skipped"/>
+                <field name="products_not_found"/>
+                <field name="errors"/>
+                <field name="duration_seconds" string="Duration (s)"/>
+            </list>
+        </field>
+    </record>
+
+    <!-- ═══════════════════════════════════════════════════════════════════
+         VIEW: Sync Log — Form
+         ═══════════════════════════════════════════════════════════════════ -->
+    <record id="view_monta_sync_log_form" model="ir.ui.view">
+        <field name="name">monta.sync.log.form</field>
+        <field name="model">monta.sync.log</field>
+        <field name="arch" type="xml">
+            <form string="Sync Log Detail" create="false">
+                <sheet>
+                    <div class="oe_title">
+                        <h1>
+                            <field name="sync_date" readonly="1"/>
+                        </h1>
+                    </div>
+
+                    <group>
+                        <group string="Status">
+                            <field name="state" widget="badge"
+                                   decoration-success="state == 'success'"
+                                   decoration-warning="state == 'warning'"
+                                   decoration-danger="state == 'error'"
+                                   readonly="1"/>
+                            <field name="duration_seconds" readonly="1"/>
+                        </group>
+                        <group string="Counters">
+                            <field name="products_fetched" readonly="1"/>
+                            <field name="products_synced" readonly="1"/>
+                            <field name="products_skipped" readonly="1"/>
+                            <field name="products_not_found" readonly="1"/>
+                            <field name="errors" readonly="1"/>
+                        </group>
+                    </group>
+
+                    <group string="Notes / Error Details" attrs="{'invisible': [('notes', '=', False)]}">
+                        <field name="notes" readonly="1" nolabel="1" widget="text"/>
+                    </group>
+                </sheet>
+            </form>
+        </field>
+    </record>
+
+    <!-- ═══════════════════════════════════════════════════════════════════
+         ACTION: Monta Stock Sync — Trigger / Status Page
+         Implemented as a server action that calls action_sync_now()
+         and opens the log list.
+         ═══════════════════════════════════════════════════════════════════ -->
+    <record id="action_monta_stock_sync_now" model="ir.actions.server">
+        <field name="name">Monta: Sync Stock Now</field>
+        <field name="model_id" ref="model_monta_stock_sync"/>
+        <field name="state">code</field>
+        <field name="code">
+action = env['monta.stock.sync'].action_sync_now()
+        </field>
+    </record>
+
+    <!-- ═══════════════════════════════════════════════════════════════════
+         VIEW: Stock Sync Dashboard (simple form on the abstract model)
+         ═══════════════════════════════════════════════════════════════════ -->
+    <record id="view_monta_stock_sync_dashboard" model="ir.ui.view">
+        <field name="name">monta.stock.sync.dashboard</field>
+        <field name="model">monta.sync.log</field>
+        <field name="arch" type="xml">
+            <list string="Monta Stock Sync" create="false" delete="false"
+                  decoration-success="state == 'success'"
+                  decoration-warning="state == 'warning'"
+                  decoration-danger="state == 'error'"
+                  default_order="sync_date desc">
+                <field name="sync_date"/>
+                <field name="state" widget="badge"
+                       decoration-success="state == 'success'"
+                       decoration-warning="state == 'warning'"
+                       decoration-danger="state == 'error'"/>
+                <field name="products_fetched" string="Fetched"/>
+                <field name="products_synced" string="Synced"/>
+                <field name="products_skipped" string="Skipped"/>
+                <field name="products_not_found" string="Not Found"/>
+                <field name="errors" string="Errors"/>
+                <field name="duration_seconds" string="Duration (s)"/>
+            </list>
+        </field>
+    </record>
+
+</odoo>

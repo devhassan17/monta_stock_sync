@@ -1,0 +1,33 @@
+# Monta Stock Sync
+
+**Sync product stock quantities from Monta Portal NL to Odoo 18.**
+
+## What it does
+
+Every 24 hours (configurable), this module:
+
+1. Calls the **Monta API v6** `/product/stock` endpoint with Basic Auth
+2. Fetches all product quantities (paginated)
+3. Matches each Monta SKU to an Odoo product variant using the same SKU resolution chain as the main Monta connector (`monta_sku` → `default_code` → supplier code → barcode → template code)
+4. Updates the Odoo `stock.quant` using `action_apply_inventory()` — the same mechanism as a manual inventory adjustment
+5. **Skips** all subscription products (recurring_invoice=True) and service products
+6. Writes a detailed sync log (Monta → Stock Sync Logs)
+
+## Features
+
+- 24-hour cron job (schedule adjustable in Settings → Technical → Scheduled Actions)
+- Manual "Sync Stock Now" button in the Monta menu
+- Full sync log: products fetched / synced / skipped / not found / errors
+- Auto-cleanup of logs older than 30 days
+- Tag any product `monta_sync_exclude` to force exclusion from sync
+
+## Requirements
+
+- Odoo 18
+- Monta-Odoo-Integration module installed and configured (with API credentials)
+
+## Configuration
+
+No extra configuration needed. The module reuses the existing **Monta Configuration** (credentials, base URL, timeout).
+
+The stock is always updated in the **default warehouse's stock location** for the current company.
