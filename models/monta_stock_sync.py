@@ -45,7 +45,7 @@ from odoo import api, fields, models, _
 _logger = logging.getLogger(__name__)
 
 # ── Constants ─────────────────────────────────────────────────────────────────
-_MONTA_STOCK_PATH = "product/stock"
+_MONTA_STOCK_PATH = "product"
 _PAGE_SIZE = 250          # rows per page from Monta
 _DEFAULT_TIMEOUT = 30     # seconds per HTTP request
 
