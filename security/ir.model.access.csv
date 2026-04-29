@@ -5,3 +5,6 @@ access_monta_sync_log_admin,monta_sync_log_admin,model_monta_sync_log,base.group
 access_monta_stock_sync_admin,monta_stock_sync_admin,model_monta_stock_sync,base.group_system,1,1,1,1
 access_monta_stock_sync_manager,monta_stock_sync_manager,model_monta_stock_sync,stock.group_stock_manager,1,1,1,0
 access_monta_stock_sync_user,monta_stock_sync_user,model_monta_stock_sync,base.group_user,1,0,0,0
+access_monta_sync_log_line_user,monta_sync_log_line_user,model_monta_sync_log_line,base.group_user,1,0,0,0
+access_monta_sync_log_line_manager,monta_sync_log_line_manager,model_monta_sync_log_line,stock.group_stock_manager,1,1,1,1
+access_monta_sync_log_line_admin,monta_sync_log_line_admin,model_monta_sync_log_line,base.group_system,1,1,1,1
