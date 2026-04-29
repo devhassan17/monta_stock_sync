@@ -253,7 +253,7 @@ class MontaStockSync(models.Model):
         }
 
         stock_data = {}
-        page = 1
+        page = 0
         total_fetched = 0
 
         _logger.info("[MontaStockSync] Starting Monta API fetch from %s", base_url)
