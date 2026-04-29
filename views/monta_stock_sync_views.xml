@@ -77,7 +77,7 @@
                         </group>
                     </group>
 
-                    <group string="Notes / Error Details" attrs="{'invisible': [('notes', '=', False)]}">
+                    <group string="Notes / Error Details" invisible="not notes">
                         <field name="notes" readonly="1" nolabel="1" widget="text"/>
                     </group>
                 </sheet>
