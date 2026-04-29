@@ -459,6 +459,15 @@ class MontaStockSync(models.Model):
                     )
                     continue
 
+                # Skip if product is assigned to a different company than the Monta location
+                if product.company_id and location.company_id and product.company_id.id != location.company_id.id:
+                    counters["skipped"] += 1
+                    _logger.warning(
+                        "[MontaStockSync] Skipped [%s] %s (Company mismatch: Product=%s, Location=%s)",
+                        sku, product.display_name, product.company_id.name, location.company_id.name
+                    )
+                    continue
+
                 try:
                     self._update_product_stock(product, location, qty)
                     counters["synced"] += 1
