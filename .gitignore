@@ -1,0 +1,5 @@
+# Ignore swagger files and test scripts
+swagger*.json
+test_monta.py
+__pycache__/
+*.pyc

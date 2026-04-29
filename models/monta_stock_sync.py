@@ -45,7 +45,7 @@ from odoo import api, fields, models, _
 _logger = logging.getLogger(__name__)
 
 # ── Constants ─────────────────────────────────────────────────────────────────
-_MONTA_STOCK_PATH = "product"
+_MONTA_STOCK_PATH = "products"
 _PAGE_SIZE = 250          # rows per page from Monta
 _DEFAULT_TIMEOUT = 30     # seconds per HTTP request
 
@@ -260,7 +260,7 @@ class MontaStockSync(models.Model):
 
         while True:
             url = f"{base_url}/{_MONTA_STOCK_PATH}"
-            params = {"page": page, "pageSize": _PAGE_SIZE}
+            params = {"page": page}
 
             try:
                 resp = requests.get(
@@ -272,11 +272,12 @@ class MontaStockSync(models.Model):
                 )
                 resp.raise_for_status()
             except requests.exceptions.HTTPError as e:
+                err_body = e.response.text if (e.response is not None) else ""
                 _logger.error(
-                    "[MontaStockSync] HTTP error fetching stock page %d: %s",
-                    page, e
+                    "[MontaStockSync] HTTP error fetching stock page %d: %s | Body: %s",
+                    page, e, err_body
                 )
-                raise
+                raise Exception(f"Monta API HTTP Error: {e} | Response Body: {err_body}")
             except requests.exceptions.RequestException as e:
                 _logger.error(
                     "[MontaStockSync] Network error fetching stock page %d: %s",
@@ -295,8 +296,8 @@ class MontaStockSync(models.Model):
 
             # Handle both list and dict-wrapped responses
             if isinstance(body, dict):
-                # Some Monta endpoints wrap results: {"content": [...], "totalPages": N}
-                rows = body.get("content") or body.get("items") or body.get("data") or []
+                # /products returns {"Products": [{"Product": {...}}]}
+                rows = body.get("Products") or body.get("content") or body.get("items") or body.get("data") or []
             elif isinstance(body, list):
                 rows = body
             else:
@@ -317,28 +318,29 @@ class MontaStockSync(models.Model):
                 if not isinstance(row, dict):
                     continue
 
-                # Primary key: sku field
-                sku = (
-                    row.get("sku")
-                    or row.get("Sku")
-                    or row.get("SKU")
-                    or row.get("productCode")
-                    or row.get("ProductCode")
+                # /products wraps the payload in {"Product": {...}}
+                p_data = row.get("Product") or row
+                if not isinstance(p_data, dict):
+                    continue
+
+                sku = str(
+                    p_data.get("Sku")
+                    or p_data.get("sku")
+                    or p_data.get("SKU")
                     or ""
-                )
-                sku = str(sku).strip()
+                ).strip()
                 if not sku:
                     continue
 
-                # Stock quantity: prefer 'stock', then 'quantity', then 'qty'
-                qty = (
-                    row.get("stock")
-                    or row.get("Stock")
-                    or row.get("quantity")
-                    or row.get("Quantity")
-                    or row.get("qty")
-                    or 0
-                )
+                stock_obj = p_data.get("Stock") or p_data.get("stock")
+                qty = 0.0
+
+                if isinstance(stock_obj, dict):
+                    # Prefer StockAll (physical inventory), fallback to StockAvailable
+                    qty = stock_obj.get("StockAll") or stock_obj.get("StockAvailable") or 0.0
+                elif isinstance(stock_obj, (int, float, str)):
+                    qty = stock_obj
+
                 try:
                     qty = float(qty)
                 except (TypeError, ValueError):
@@ -352,10 +354,7 @@ class MontaStockSync(models.Model):
                 page, len(rows), total_fetched
             )
 
-            # Stop if we got fewer rows than the page size (last page)
-            if len(rows) < _PAGE_SIZE:
-                break
-
+            # If we get an empty array, the while loop will break at the start of the next iteration
             page += 1
 
         _logger.info(
