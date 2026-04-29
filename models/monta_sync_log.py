@@ -73,6 +73,13 @@ class MontaSyncLog(models.Model):
         readonly=True,
         help="Human-readable summary of what happened during this sync run.",
     )
+    
+    line_ids = fields.One2many(
+        comodel_name="monta.sync.log.line",
+        inverse_name="log_id",
+        string="Log Lines",
+        readonly=True,
+    )
 
     # ── Cleanup ───────────────────────────────────────────────────────────────
     @api.model
@@ -82,3 +89,22 @@ class MontaSyncLog(models.Model):
         old = self.sudo().search([("sync_date", "<", cutoff)])
         if old:
             old.unlink()
+
+
+class MontaSyncLogLine(models.Model):
+    _name = "monta.sync.log.line"
+    _description = "Monta Stock Sync Log Line"
+    _order = "id asc"
+
+    log_id = fields.Many2one("monta.sync.log", string="Sync Log", ondelete="cascade", required=True)
+    sku = fields.Char(string="Monta SKU")
+    product_id = fields.Many2one("product.product", string="Odoo Product")
+    status = fields.Selection([
+        ("synced", "Synced"),
+        ("skipped", "Skipped"),
+        ("not_found", "Not Found"),
+        ("error", "Error")
+    ], string="Status")
+    qty_before = fields.Float(string="Qty Before")
+    qty_after = fields.Float(string="Qty After")
+    note = fields.Char(string="Notes")

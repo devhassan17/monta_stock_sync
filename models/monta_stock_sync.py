@@ -402,6 +402,7 @@ class MontaStockSync(models.Model):
 
         # Commit the adjustment — this creates the stock.move
         quant.action_apply_inventory()
+        return qty_before
 
     # ──────────────────────────────────────────────────────────────────────────
     # Public: action_sync_now  (manual button)
@@ -423,6 +424,7 @@ class MontaStockSync(models.Model):
             "errors": 0,
         }
         notes_lines = []
+        log_lines = []
         final_state = "success"
 
         try:
@@ -441,7 +443,7 @@ class MontaStockSync(models.Model):
             if not monta_stock:
                 notes_lines.append("Monta API returned no stock data.")
                 final_state = "warning"
-                self._write_log(counters, final_state, "\n".join(notes_lines), time.time() - t_start)
+                self._write_log(counters, final_state, "\n".join(notes_lines), time.time() - t_start, log_lines)
                 return counters
 
             # 2. Build SKU → product map (excludes subscription/service products)
@@ -457,29 +459,55 @@ class MontaStockSync(models.Model):
                     _logger.debug(
                         "[MontaStockSync] SKU '%s' not found in Odoo — skipping.", sku
                     )
+                    log_lines.append((0, 0, {
+                        "sku": sku,
+                        "status": "not_found",
+                        "qty_after": qty,
+                        "note": "Not found in Odoo"
+                    }))
                     continue
 
                 # Skip if product is assigned to a different company than the Monta location
                 if product.company_id and location.company_id and product.company_id.id != location.company_id.id:
                     counters["skipped"] += 1
-                    _logger.warning(
-                        "[MontaStockSync] Skipped [%s] %s (Company mismatch: Product=%s, Location=%s)",
-                        sku, product.display_name, product.company_id.name, location.company_id.name
-                    )
+                    msg = f"Company mismatch: Product={product.company_id.name}, Location={location.company_id.name}"
+                    _logger.warning("[MontaStockSync] Skipped [%s] %s (%s)", sku, product.display_name, msg)
+                    log_lines.append((0, 0, {
+                        "sku": sku,
+                        "product_id": product.id,
+                        "status": "skipped",
+                        "qty_after": qty,
+                        "note": msg
+                    }))
                     continue
 
                 try:
-                    self._update_product_stock(product, location, qty)
+                    qty_before = self._update_product_stock(product, location, qty)
                     counters["synced"] += 1
                     _logger.info(
                         "[MontaStockSync] Updated [%s] %s → qty %.2f",
                         sku, product.display_name, qty,
                     )
+                    log_lines.append((0, 0, {
+                        "sku": sku,
+                        "product_id": product.id,
+                        "status": "synced",
+                        "qty_before": qty_before,
+                        "qty_after": qty,
+                        "note": "Success"
+                    }))
                 except Exception as exc:
                     counters["errors"] += 1
                     msg = f"Error updating [{sku}] {product.display_name}: {exc}"
                     notes_lines.append(msg)
                     _logger.error("[MontaStockSync] %s", msg, exc_info=True)
+                    log_lines.append((0, 0, {
+                        "sku": sku,
+                        "product_id": product.id,
+                        "status": "error",
+                        "qty_after": qty,
+                        "note": str(exc)
+                    }))
 
         except Exception as fatal:
             final_state = "error"
@@ -512,7 +540,7 @@ class MontaStockSync(models.Model):
             final_state,
         )
 
-        self._write_log(counters, final_state, notes, duration)
+        self._write_log(counters, final_state, notes, duration, log_lines)
         return counters
 
     # ──────────────────────────────────────────────────────────────────────────
@@ -520,8 +548,9 @@ class MontaStockSync(models.Model):
     # ──────────────────────────────────────────────────────────────────────────
 
     @api.model
-    def _write_log(self, counters, state, notes, duration):
-        self.env["monta.sync.log"].sudo().create({
+    def _write_log(self, counters, state, notes, duration, log_lines=None):
+        """Create a monta.sync.log record."""
+        vals = {
             "sync_date": fields.Datetime.now(),
             "products_fetched": counters.get("fetched", 0),
             "products_synced": counters.get("synced", 0),
@@ -531,7 +560,11 @@ class MontaStockSync(models.Model):
             "state": state,
             "duration_seconds": round(duration, 2),
             "notes": notes,
-        })
+        }
+        if log_lines:
+            vals["line_ids"] = log_lines
+
+        self.env["monta.sync.log"].sudo().create(vals)
 
     # ──────────────────────────────────────────────────────────────────────────
     # Public: cron entry point
