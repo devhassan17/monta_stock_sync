@@ -391,6 +391,8 @@ class MontaStockSync(models.Model):
             ("owner_id", "=", False),
         ], limit=1)
 
+        qty_before = quant.quantity if quant else 0.0
+
         if quant:
             quant.write({"inventory_quantity": new_qty})
         else:

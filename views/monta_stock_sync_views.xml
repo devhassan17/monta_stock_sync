@@ -80,6 +80,28 @@
                     <group string="Notes / Error Details" invisible="not notes">
                         <field name="notes" readonly="1" nolabel="1" widget="text"/>
                     </group>
+
+                    <notebook>
+                        <page string="Sync Details" name="sync_details">
+                            <field name="line_ids" readonly="1">
+                                <list decoration-success="status == 'synced'"
+                                      decoration-warning="status == 'skipped'"
+                                      decoration-info="status == 'not_found'"
+                                      decoration-danger="status == 'error'">
+                                    <field name="sku"/>
+                                    <field name="product_id"/>
+                                    <field name="status" widget="badge"
+                                           decoration-success="status == 'synced'"
+                                           decoration-warning="status == 'skipped'"
+                                           decoration-info="status == 'not_found'"
+                                           decoration-danger="status == 'error'"/>
+                                    <field name="qty_before"/>
+                                    <field name="qty_after"/>
+                                    <field name="note"/>
+                                </list>
+                            </field>
+                        </page>
+                    </notebook>
                 </sheet>
             </form>
         </field>

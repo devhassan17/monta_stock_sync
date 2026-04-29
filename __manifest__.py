@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
 {
     "name": "Monta Stock Sync",
-    "version": "18.0.1.0.7",
+    "version": "18.0.1.0.9",
     "summary": "Sync product stock quantities from Monta Portal NL to Odoo 18 every 24 hours.",
     "description": """
 Monta Stock Sync
