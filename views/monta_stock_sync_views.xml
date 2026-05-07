@@ -156,7 +156,7 @@ action = env['monta.stock.sync'].action_sync_now()
         <field name="model">monta.config</field>
         <field name="inherit_id" ref="Monta-Odoo-Integration.view_monta_config_form"/>
         <field name="arch" type="xml">
-            <xpath expr="//group[@string='General Settings']" position="inside">
+            <xpath expr="//field[@name='allowed_company_ids']" position="after">
                 <field name="stock_sync_enabled" widget="boolean_toggle"/>
             </xpath>
         </field>
