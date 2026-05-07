@@ -431,6 +431,15 @@ class MontaStockSync(models.Model):
 
         try:
             cfg = self._get_config()
+            
+            # Global toggle check
+            if not cfg.stock_sync_enabled:
+                msg = "Stock synchronization is DISABLED in Monta Configuration."
+                _logger.info("[MontaStockSync] %s", msg)
+                notes_lines.append(msg)
+                self._write_log(counters, "skipped", "\n".join(notes_lines), time.time() - t_start, log_lines)
+                return counters
+
             location = self._get_sync_location()
 
             _logger.info(
@@ -498,6 +507,13 @@ class MontaStockSync(models.Model):
                         "qty_after": qty,
                         "note": "Success"
                     }))
+
+                    # Trigger Pack Update: find parent products (packs) and update their quantities
+                    try:
+                        self._update_pack_quantities(product, location, set())
+                    except Exception as pack_exc:
+                        _logger.warning("[MontaStockSync] Pack update failed for %s: %s", product.display_name, pack_exc)
+
                 except Exception as exc:
                     counters["errors"] += 1
                     msg = f"Error updating [{sku}] {product.display_name}: {exc}"
@@ -597,6 +613,68 @@ class MontaStockSync(models.Model):
     # ──────────────────────────────────────────────────────────────────────────
     # UI helper: open log list view
     # ──────────────────────────────────────────────────────────────────────────
+
+    @api.model
+    def _update_pack_quantities(self, product, location, updated_ids):
+        """
+        Identify and update parent "pack" products that contain the given product
+        as a component in their Bill of Materials (BoM).
+        """
+        if product.id in updated_ids:
+            return
+        updated_ids.add(product.id)
+
+        # Find all BoM lines where this product is a component
+        bom_lines = self.env['mrp.bom.line'].sudo().search([('product_id', '=', product.id)])
+        parent_boms = bom_lines.mapped('bom_id')
+
+        for bom in parent_boms:
+            # Parent product for this BoM (variant-specific or template-default)
+            parent_product = bom.product_id or bom.product_tmpl_id.product_variant_id
+            if not parent_product or parent_product.id in updated_ids:
+                continue
+
+            # Skip if parent product is excluded from sync
+            excluded_ids = self._get_excluded_product_ids()
+            if parent_product.id in excluded_ids:
+                continue
+
+            # Calculate how many packs can be made based on ALL components' current Odoo stock
+            try:
+                can_make = []
+                for line in bom.bom_line_ids:
+                    comp = line.product_id
+                    qty_needed = line.product_qty
+                    if not comp or qty_needed <= 0:
+                        continue
+
+                    # Get current on-hand of component at this specific location
+                    # Note: we use the same location as the sync
+                    comp_quant = self.env['stock.quant'].sudo().search([
+                        ('product_id', '=', comp.id),
+                        ('location_id', '=', location.id),
+                        ('lot_id', '=', False),
+                        ('package_id', '=', False),
+                        ('owner_id', '=', False),
+                    ], limit=1)
+                    comp_qty = comp_quant.quantity if comp_quant else 0.0
+                    can_make.append(comp_qty / qty_needed)
+
+                if can_make:
+                    new_pack_qty = min(can_make)
+                    _logger.info(
+                        "[MontaStockSync] Propagating stock to Pack [%s] %s: qty %.2f",
+                        parent_product.default_code or parent_product.id,
+                        parent_product.display_name,
+                        new_pack_qty
+                    )
+                    self._update_product_stock(parent_product, location, new_pack_qty)
+
+                    # Recursively update any packs that might contain THIS pack
+                    self._update_pack_quantities(parent_product, location, updated_ids)
+
+            except Exception as e:
+                _logger.warning("[MontaStockSync] Failed to calculate pack stock for %s: %s", parent_product.display_name, e)
 
     @api.model
     def action_open_logs(self):

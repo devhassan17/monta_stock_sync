@@ -148,4 +148,18 @@ action = env['monta.stock.sync'].action_sync_now()
         </field>
     </record>
 
+    <!-- ═══════════════════════════════════════════════════════════════════
+         VIEW: Monta Configuration — Inherited Form
+         ═══════════════════════════════════════════════════════════════════ -->
+    <record id="view_monta_config_form_inherit_stock_sync" model="ir.ui.view">
+        <field name="name">monta.config.form.inherit.stock.sync</field>
+        <field name="model">monta.config</field>
+        <field name="inherit_id" ref="Monta-Odoo-Integration.view_monta_config_form"/>
+        <field name="arch" type="xml">
+            <xpath expr="//group[@string='General Settings']" position="inside">
+                <field name="stock_sync_enabled" widget="boolean_toggle"/>
+            </xpath>
+        </field>
+    </record>
+
 </odoo>
